@@ -125,11 +125,15 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
 
     //Generates an array of coefficients from lowest n degree to highest
     public double[] getCoefficients() {
-        double[] output = new double[degree];
-        for (int i = 0; i < degree; i++) {
+        double[] output = new double[degree+1];
+        for (int i = 0; i < degree+1; i++) {
             output[i] = beta(i);
         }
         return output;
+    }
+
+    public String getLatexString() {
+        return this.toString();
     }
 
     /**
