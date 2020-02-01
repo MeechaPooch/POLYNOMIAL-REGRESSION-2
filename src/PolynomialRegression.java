@@ -11,6 +11,9 @@
 import Jama.Matrix;
 import Jama.QRDecomposition;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 /**
  *  The {@code PolynomialRegression} class performs a polynomial regression
  *  on an set of <em>N</em> data points (<em>y<sub>i</sub></em>, <em>x<sub>i</sub></em>).
@@ -31,11 +34,13 @@ import Jama.QRDecomposition;
  *  @author Kevin Wayne
  */
 public class PolynomialRegression implements Comparable<PolynomialRegression> {
-    private final String variableName;  // name of the predictor variable
+    private String variableName;        // name of the predictor variable
     private int degree;                 // degree of the polynomial regression
     private Matrix beta;                // the polynomial regression coefficients
     private double sse;                 // sum of squares due to error
     private double sst;                 // total sum of squares
+    private double[] x;
+    private double[] y;
 
 
     /**
@@ -61,54 +66,65 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      * @throws IllegalArgumentException if the lengths of the two arrays are not equal
      */
     public PolynomialRegression(double[] x, double[] y, int degree, String variableName) {
-        this.degree = degree;
-        this.variableName = variableName;
+        init(x,y,degree,variableName);
+    }
 
-        int n = x.length;
-        QRDecomposition qr = null;
-        Matrix matrixX = null;
+    private void init(double[] x, double[] y, int degree, String variableName) {
+        if(x.length>degree+1) {
+            this.x = x;
+            this.y = y;
+            this.degree = degree;
+            this.variableName = variableName;
 
-        // in case Vandermonde matrix does not have full rank, reduce degree until it does
-        while (true) {
+            int n = x.length;
+            QRDecomposition qr = null;
+            Matrix matrixX = null;
 
-            // build Vandermonde matrix
-            double[][] vandermonde = new double[n][this.degree+1];
-            for (int i = 0; i < n; i++) {
-                for (int j = 0; j <= this.degree; j++) {
-                    vandermonde[i][j] = Math.pow(x[i], j);
+            // in case Vandermonde matrix does not have full rank, reduce degree until it does
+            while (true) {
+
+                // build Vandermonde matrix
+                double[][] vandermonde = new double[n][this.degree + 1];
+                for (int i = 0; i < n; i++) {
+                    for (int j = 0; j <= this.degree; j++) {
+                        vandermonde[i][j] = Math.pow(x[i], j);
+                    }
                 }
+                matrixX = new Matrix(vandermonde);
+
+                // find least squares solution
+                qr = new QRDecomposition(matrixX);
+                if (qr.isFullRank()) break;
+
+                // decrease degree and try again
+                this.degree--;
             }
-            matrixX = new Matrix(vandermonde);
 
-            // find least squares solution
-            qr = new QRDecomposition(matrixX);
-            if (qr.isFullRank()) break;
+            // create matrix from vector
+            Matrix matrixY = new Matrix(y, n);
 
-            // decrease degree and try again
-            this.degree--;
+            // linear regression coefficients
+            beta = qr.solve(matrixY);
+
+            // mean of y[] values
+            double sum = 0.0;
+            for (int i = 0; i < n; i++)
+                sum += y[i];
+            double mean = sum / n;
+
+            // total variation to be accounted for
+            for (int i = 0; i < n; i++) {
+                double dev = y[i] - mean;
+                sst += dev * dev;
+            }
+
+            // variation not accounted for
+            Matrix residuals = matrixX.times(beta).minus(matrixY);
+            sse = residuals.norm2() * residuals.norm2();
+        } else {
+            this.x = x;
+            this.y = y;
         }
-
-        // create matrix from vector
-        Matrix matrixY = new Matrix(y, n);
-
-        // linear regression coefficients
-        beta = qr.solve(matrixY);
-
-        // mean of y[] values
-        double sum = 0.0;
-        for (int i = 0; i < n; i++)
-            sum += y[i];
-        double mean = sum / n;
-
-        // total variation to be accounted for
-        for (int i = 0; i < n; i++) {
-            double dev = y[i] - mean;
-            sst += dev*dev;
-        }
-
-        // variation not accounted for
-        Matrix residuals = matrixX.times(beta).minus(matrixY);
-        sse = residuals.norm2() * residuals.norm2();
     }
 
     /**
@@ -118,13 +134,46 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      * @return the {@code j}th regression coefficient
      */
     public double beta(int j) {
+        testState();
         // to make -0.0 print as 0.0
         if (Math.abs(beta.get(j, 0)) < 1E-4) return 0.0;
         return beta.get(j, 0);
     }
 
+    public void add(double x, double y) {
+        double[] newX = new double[this.x.length+1];
+        double[] newY = new double[this.y.length+1];
+        for (int i = 0; i < this.x.length; i++) {
+            newX[i] = this.x[i];
+            newY[i] = this.y[i];
+        }
+        newX[newX.length-1] = x;
+        newY[newY.length-1] = y;
+        init(newX,newY,degree,variableName);
+    }
+
+    public void add(double[] x, double[] y) {
+        if(x.length!=y.length) throw(new IllegalArgumentException("both arrays must be of the same length"));
+        double[] newX = new double[this.x.length+x.length];
+        double[] newY = new double[this.y.length+x.length];
+        for (int i = 0; i < this.x.length; i++) {
+            newX[i] = this.x[i];
+            newY[i] = this.y[i];
+        }
+        for (int i = this.x.length; i < newX.length; i++) {
+            newX[i] = x[i];
+            newY[i] = y[i];
+        }
+        init(newX,newY,degree,variableName);
+    }
+
+    public void clear() {
+        init(new double[]{}, new double[]{},degree,variableName);
+    }
+
     //Generates an array of coefficients from lowest n degree to highest
     public double[] getCoefficients() {
+        testState();
         double[] output = new double[degree+1];
         for (int i = 0; i < degree+1; i++) {
             output[i] = beta(i);
@@ -133,7 +182,8 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
     }
 
     public String getLatexString() {
-        return this.toString();
+        testState();
+        return toString();
     }
 
     /**
@@ -152,6 +202,7 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      *         which is a real number between 0 and 1
      */
     public double R2() {
+        testState();
         if (sst == 0.0) return 1.0;   // constant function
         return 1.0 - sse/sst;
     }
@@ -165,11 +216,16 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      *         variable {@code x}
      */
     public double predict(double x) {
+        testState();
         // horner's method
         double y = 0.0;
         for (int j = degree; j >= 0; j--)
             y = beta(j) + (x * y);
         return y;
+    }
+
+    private void testState() {
+        if(x.length<=degree+1) throw(new IllegalStateException("Add more data points"));
     }
 
     /**
@@ -181,6 +237,7 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      */
     @Override
     public String toString() {
+        testState();
         StringBuilder s = new StringBuilder();
         int j = degree;
 
@@ -206,6 +263,7 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      */
     @Override
     public int compareTo(PolynomialRegression that) {
+        testState();
         double EPSILON = 1E-5;
         int maxDegree = Math.max(this.degree(), that.degree());
         for (int j = maxDegree; j >= 0; j--) {
