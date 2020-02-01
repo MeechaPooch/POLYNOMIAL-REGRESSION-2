@@ -171,6 +171,11 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
         init(new double[]{}, new double[]{},degree,variableName);
     }
 
+    public void setDegree(int degree) {
+        if(degree<0) throw(new IllegalArgumentException("Degree cannot be negative"));
+        init(x,y,degree,variableName);
+    }
+
     //Generates an array of coefficients from lowest n degree to highest
     public double[] getCoefficients() {
         testState();
