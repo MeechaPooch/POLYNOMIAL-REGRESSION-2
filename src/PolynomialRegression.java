@@ -123,6 +123,15 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
         return beta.get(j, 0);
     }
 
+    //Generates an array of coefficients from lowest n degree to highest
+    public double[] getCoefficients() {
+        double[] output = new double[degree];
+        for (int i = 0; i < degree; i++) {
+            output[i] = beta(i);
+        }
+        return output;
+    }
+
     /**
      * Returns the degree of the polynomial to fit.
      *
@@ -166,6 +175,7 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      *         including the best-fit polynomial and the coefficient of
      *         determination <em>R</em><sup>2</sup>
      */
+    @Override
     public String toString() {
         StringBuilder s = new StringBuilder();
         int j = degree;
@@ -190,6 +200,7 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
     /**
      * Compare lexicographically.
      */
+    @Override
     public int compareTo(PolynomialRegression that) {
         double EPSILON = 1E-5;
         int maxDegree = Math.max(this.degree(), that.degree());
@@ -212,4 +223,3 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
      * @param args the command-line arguments
      */
 }
-
