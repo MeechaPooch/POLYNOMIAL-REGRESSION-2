@@ -69,13 +69,17 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
         init(x,y,degree,variableName);
     }
 
-    private void init(double[] x, double[] y, int degree, String variableName) {
-        if(x.length>degree+1) {
-            this.x = x;
-            this.y = y;
-            this.degree = degree;
-            this.variableName = variableName;
+    public PolynomialRegression(int degree) {
+        this(new double[]{}, new double[]{},degree);
+    }
 
+    private void init(double[] x, double[] y, int degree, String variableName) {
+        this.x = x;
+        this.y = y;
+        this.degree = degree;
+        this.variableName = variableName;
+
+        if(x.length>degree+1) {
             int n = x.length;
             QRDecomposition qr = null;
             Matrix matrixX = null;
@@ -121,9 +125,6 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
             // variation not accounted for
             Matrix residuals = matrixX.times(beta).minus(matrixY);
             sse = residuals.norm2() * residuals.norm2();
-        } else {
-            this.x = x;
-            this.y = y;
         }
     }
 
@@ -161,8 +162,8 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
             newY[i] = this.y[i];
         }
         for (int i = this.x.length; i < newX.length; i++) {
-            newX[i] = x[i];
-            newY[i] = y[i];
+            newX[i] = x[i-this.x.length];
+            newY[i] = y[i-this.y.length];
         }
         init(newX,newY,degree,variableName);
     }
@@ -230,7 +231,7 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
     }
 
     private void testState() {
-        if(x.length<=degree+1) throw(new IllegalStateException("Add more data points"));
+        if(x.length<=degree+1) throw(new IllegalStateException("Add more data points [degree:"+degree+", points:"+x.length+"]"));
     }
 
     /**
@@ -257,7 +258,6 @@ public class PolynomialRegression implements Comparable<PolynomialRegression> {
             else             s.append(String.format("%.2f %s^%d + ", beta(j), variableName, j));
             j--;
         }
-        s = s.append("  (R^2 = " + String.format("%.3f", R2()) + ")");
 
         // replace "+ -2n" with "- 2n"
         return s.toString().replace("+ -", "- ");
